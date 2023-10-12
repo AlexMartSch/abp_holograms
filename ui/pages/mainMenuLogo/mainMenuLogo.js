@@ -1,0 +1,1 @@
+MarkDUIAsReady("mainmenulogo")
