@@ -25,9 +25,9 @@ Config.DebugMode = true
 Config.SaveAlgorithm = 'json'
 
 Config.Holograms = {
-	['abplogo'] = {
+	['test'] = {
 		enabled = true,
-		htmlTarget = "abplogo",
+		htmlTarget = "test",
 		attachTo = 'world',
 		type = 'hologram',
 		typeProperties = {
