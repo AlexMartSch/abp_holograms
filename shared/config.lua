@@ -25,14 +25,14 @@ Config.DebugMode = true
 Config.SaveAlgorithm = 'json'
 
 Config.Holograms = {
-	['test'] = {
+	['mainmenulogo'] = {
 		enabled = true,
-		htmlTarget = "test",
+		htmlTarget = "mainmenulogo",
 		attachTo = 'world',
-		type = 'hologram',
+		type = 'hologram-marker',
 		typeProperties = {
 			---- MARKER PROPERTIES
-			rotation = vector3(90.0, 0.0, 0.0), -- vertial, horizontal
+			rotation = vector3(90.0, 0.0, 0.0), -- vertical, horizontal
 			scale = vector3(4.5, 4.5, 4.5),
 			rotate = false,
 			cameraFollow = false,
@@ -43,7 +43,7 @@ Config.Holograms = {
 		scale = vec2(1024, 1024)
 	},
 
-	---- WIP
+
 	-- ['playerinfo'] = {
 	-- 	enabled = true,
 	-- 	htmlTarget = "playerinfo",
