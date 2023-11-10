@@ -61,10 +61,12 @@ function InitializeDUI()
 		CreateThread(function() 
 			if not Config.__HologramsObjects[holoId] then
 				local HologramURI        	= holo.urlTarget and holo.urlTarget or string.format("nui://%s/ui/pages/%s/%s.html", ResourceName, holo.htmlTarget, holo.htmlTarget)
-				local internalId 			= "HologramDUI_"..holoId
-				local internalTextureId 	= "DUI_"..holoId
+				local randId 				= math.random(1000, 9999)
+				local internalId 			= "HologramDUI_"..holoId.."_"..randId
+				local internalTextureId 	= "DUI_"..holoId.."-"..randId
 	
 				Config.__HologramsObjects[holoId] = {}
+				Config.__HologramsObjects[holoId].id = holoId
 				Config.__HologramsObjects[holoId].data = holo
 				Config.__HologramsObjects[holoId].duiIsReady = false
 				Config.__HologramsObjects[holoId].enabled = holo.enabled
@@ -74,7 +76,7 @@ function InitializeDUI()
 	
 				DebugPrint("\tDUI (".. Config.__HologramsObjects[holoId].duiObject ..") created for " .. holoId .. " Scale (".. math.floor(holo.scale.x) .. " , " .. math.floor(holo.scale.y) ..")")
 	
-				repeat Wait(0) until Config.__HologramsObjects[holoId].duiIsReady or holo.urlTarget ~= nil
+				repeat Wait(100) until Config.__HologramsObjects[holoId].duiIsReady or holo.urlTarget ~= nil
 	
 				DebugPrint("\tDUI initialised for " .. holoId)
 	
@@ -86,9 +88,23 @@ function InitializeDUI()
 	
 				DebugPrint("\tRuntime texture created for " .. holoId .. " (duiObject: ".. Config.__HologramsObjects[holoId].duiObject ..")")
 	
-				if holo.attachTo ~= 'world' then
+				if holo.type ~= 'hologram-marker' then
 					Config.__HologramsObjects[holoId].hologramObject = CreateHologram()
 					AddReplaceTexture("hologram_box_model", "p_hologram_box" , internalId, internalTextureId)
+
+					if holo.typeProperties.cameraFollow then
+						CreateThread(function() 
+							local pos = holo.position
+
+							while Config.__HologramsObjects[holoId] and DoesEntityExist(Config.__HologramsObjects[holoId].hologramObject) do
+	
+								DrawLightWithRange(pos.x, pos.y, pos.z, 255, 255, 255, 1.0, 100.0)
+								SetEntityHeading(Config.__HologramsObjects[holoId].hologramObject,  GetGameplayCamRot(0).z)
+								
+								Wait(0)
+							end
+						end)
+					end
 				end
 				
 				if holo.attachTo == 'player' then
@@ -96,6 +112,8 @@ function InitializeDUI()
 				elseif holo.attachTo == 'vehicle' then
 					-- Create the hologram object
 					-- AttachEntityToEntity(Config.__HologramsObjects[holoId].hologramObject, GetVehiclePedIsIn(PlayerPedId(), false), GetEntityBoneIndexByName(GetVehiclePedIsIn(PlayerPedId(), false), "chassis"), holo.position, AttachmentRotation, false, false, false, false, false, true)
+				elseif holo.attachTo == 'world' then
+					AttachHologramToWorld2(Config.__HologramsObjects[holoId].hologramObject, holo.position)
 				end
 	
 				DebugPrint("Done! (".. Config.__HologramsObjects[holoId].duiObject ..") for " .. holoId)
@@ -155,7 +173,7 @@ function DisplayHolograms()
 		while true do
 			for holoId, holoData in pairs(Config.__HologramsObjects) do
 				if holoData.enabled and holoData.visible then
-					if holoData.data.attachTo == 'world' and holoData.data.type == 'hologram'  then
+					if holoData.data.attachTo == 'world' and holoData.data.type == 'hologram-marker'  then
 						AttachHologramToWorld(holoData.data, holoData.internalId, holoData.internalTextureId)
 					end
 				end
@@ -192,6 +210,7 @@ function CreateHologram()
 	SetVehicleIsConsideredByPlayer(hologramObject, false)
 	SetVehicleEngineOn(hologramObject, true, true)
 	SetEntityCollision(hologramObject, false, false)
+	SetEntityAlpha(hologramObject, 255, true)
 	DebugPrint("DUI anchor created "..tostring(hologramObject))
 
 	Entity(hologramObject).state:set("hologram", true)
@@ -245,12 +264,12 @@ function AttachHologramToPlayer(holoId)
 	DebugPrint(string.format("DUI anchor %s attached to %s", holo.hologramObject, PlayerPedId()))
 end
 
--- function AttachHologramToWorld2(hologramObject, coords)
--- 	SetEntityCoords(hologramObject, coords.x, coords.y, coords.z)
--- 	FreezeEntityPosition(hologramObject, true)
--- 	SetEntityHeading(hologramObject, 220.0)
--- 	DebugPrint(string.format("DUI anchor %s attached to world", hologramObject))
--- end
+function AttachHologramToWorld2(hologramObject, coords)
+	SetEntityCoords(hologramObject, coords.x, coords.y, coords.z)
+	FreezeEntityPosition(hologramObject, true)
+	SetEntityHeading(hologramObject, 220.0)
+	DebugPrint(string.format("DUI anchor %s attached to world", hologramObject))
+end
 
 function AttachHologramToWorld(holoData, txd, txn)
 	local coords = holoData.position
@@ -266,12 +285,16 @@ end
 
 -- Register a callback for when the DUI JS has loaded completely
 RegisterNUICallback("duiIsReady", function(data, cb)
-	local holoTarget = data.duiName
-	local foundHolo  = FindHologramByHtmlTarget(holoTarget)
+	local holoTarget  = data.duiName
+	local foundHolos  = FindHologramByHtmlTarget(holoTarget)
 
-	if foundHolo then
-		DebugPrint("DUI for ".. holoTarget .." anchor is ready")
-		Config.__HologramsObjects[foundHolo].duiIsReady = true
+	if foundHolos then
+		for _, holoId in pairs(foundHolos) do
+			DebugPrint("DUI for ".. holoTarget .." anchor is ready")
+			Config.__HologramsObjects[holoId].duiIsReady = true
+		end
+	else
+		DebugPrint("DUI for ".. holoTarget .." anchor not found")
 	end
 
     cb({ok = true})
@@ -291,6 +314,8 @@ exports('CreateHologram', function(holoId, holoData)
 
 		InitializeDUI()
 	end
+
+	return holoId
 end)
 
 exports('UpdateHologram', function(holoId, holoData)
@@ -381,7 +406,7 @@ function RebuildHologram(__holoId__, __holoData__)
 
 end
 
-function DestroyHologram(__holoId__)
+function DestroyHologram(__holoId__, forced)
 	for holoId, holo in pairs(Config.__HologramsObjects) do
 		if holoId == __holoId__ then
 			holo.enabled = false
@@ -390,7 +415,7 @@ function DestroyHologram(__holoId__)
 				DebugPrint("\tDUI for ".. holoId .." anchor deleted "..tostring(holo.hologramObject))
 			end
 	
-			RemoveReplaceTexture("hologram_box_model", "p_hologram_box")
+			--RemoveReplaceTexture("hologram_box_model", "p_hologram_box")
 			DebugPrint("\tReplace texture removed")
 	
 			if holo.duiObject then
@@ -398,9 +423,17 @@ function DestroyHologram(__holoId__)
 				DestroyDui(holo.duiObject)
 				holo.duiObject = false
 			end
+
+			break
 		end
 	end
+
+	if forced then 
+		Config.__HologramsObjects[__holoId__] = nil
+		Config.Holograms[__holoId__] = nil
+	end
 end
+exports('DestroyHologram', DestroyHologram)
 
 function DestroyAllHolograms()
 	DebugPrint("Cleaning up...")
@@ -424,6 +457,30 @@ function DestroyAllHolograms()
 		end
 	end
 end
+
+EnsureDuiMessage = function(hologram, hologramId, eventName, data)
+
+	if not Config.__HologramsObjects[hologramId] then return false end
+	if not hologram then return false end
+	if not hologram.duiObject or hologram.duiObject == 0 then return false end
+	if not IsDuiAvailable(hologram.duiObject) then return false end
+
+	repeat Wait(300) until hologram.duiIsReady
+
+	SendDuiMessage(hologram.duiObject, json.encode({
+		content		= data,
+		duiName 	= hologram.data.htmlTarget,
+		id 			= hologramId,
+		eventName 	= eventName
+	}))
+	return true
+end
+
+exports('SendHologramData', function(hologramId, eventName, data)
+	if not Config.__HologramsObjects[hologramId] then return false end
+
+	return EnsureDuiMessage(Config.__HologramsObjects[hologramId], hologramId, eventName, data)
+end)
 
 RegisterCommand('destroyholos', function() 
 	DestroyAllHolograms()
