@@ -87,14 +87,34 @@ function DebugPrint(...)
 	end
 end
 
-function FindHologramByHtmlTarget(htmlTarget)
-    for k, v in pairs(Config.Holograms) do
-        if v.htmlTarget == htmlTarget then
-            return k
-        end
-    end
+function TableContains(t, e)
+  for _, val in pairs(t) do
+		if val == e then
+			return true
+		end
+	end
 
+	return false
+end
+
+function FindHologramByHtmlTarget(htmlTarget)
+
+  local found = {}
+
+  for k, v in pairs(Config.Holograms) do
+      if v.htmlTarget == htmlTarget then
+        print(k)
+        if not TableContains(found, k) then
+          table.insert(found, k)
+        end
+      end
+  end
+
+  if #found == 0 then
     return false
+  end
+
+    return found
 end
 
 DeepTableCopy = function(t)
@@ -102,13 +122,3 @@ DeepTableCopy = function(t)
 	for k, v in pairs(t) do u[k] = v end
 	return setmetatable(u, getmetatable(t))
 end
-
----- FIX THIS
--- function EnsureDuiMessage(duiObject, data)
--- 	if duiIsReady then
--- 		SendDuiMessage(duiObject, json.encode(data))
--- 		return true
--- 	end
-
--- 	return false
--- end
