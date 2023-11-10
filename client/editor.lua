@@ -33,8 +33,8 @@ CreateThread(function()
             {type = 'input',    label = 'URL Target',       default = cache_createdHolograms and cache_createdHolograms.urlTarget,   description = 'Set URL Target for Hologram',    required = true, min = 10, max = 256},
             {type = 'number',   label = 'Distance View',    default = cache_createdHolograms and cache_createdHolograms.distanceView, description = 'Max distance of render',         required = true, icon = 'hashtag', min = 10, max = 500},
 
-            {type = 'number',   label = 'Scale X',  precision = 2, step = 0.1, default = cache_createdHolograms and cache_createdHolograms.scale.y, description = 'Resolution Scale X', icon = 'hashtag', min = 64, max = 2048, required = true},
-            {type = 'number',   label = 'Scale Y',  precision = 2, step = 0.1, default = cache_createdHolograms and cache_createdHolograms.scale.x, description = 'Resolution Scale Y', icon = 'hashtag', min = 64, max = 2048, required = true},
+            {type = 'number',   label = 'Scale X',  precision = 2, step = 0.1, default = cache_createdHolograms and cache_createdHolograms.scale.x, description = 'Resolution Scale X', icon = 'hashtag', min = 64, max = 2048, required = true},
+            {type = 'number',   label = 'Scale Y',  precision = 2, step = 0.1, default = cache_createdHolograms and cache_createdHolograms.scale.y, description = 'Resolution Scale Y', icon = 'hashtag', min = 64, max = 2048, required = true},
 
             {type = 'checkbox', label = 'Hologream Always Rotate',    checked = false},
             {type = 'checkbox', label = 'Hologram Follow Player Cam', checked = false},
@@ -145,7 +145,8 @@ CreateThread(function()
     function OpenEditorMenuInput()
         local input = lib.inputDialog('Creating Hologram', {
             {type = 'input',    label = 'Holo ID',          default = cache_currentHologramId,      disabled = true},
-            {type = 'input',    label = 'URL Target',       default = cache_createdHolograms and cache_createdHolograms.data.urlTarget,   description = 'Set URL Target for Hologram',    required = true, min = 10, max = 256},
+            {type = 'input',    label = 'URL Target',       default = cache_createdHolograms and cache_createdHolograms.data.urlTarget,   description = 'Set URL Target for Hologram',    required = false, min = 10, max = 256},
+            {type = 'input',    label = 'Html Target',       default = cache_createdHolograms and cache_createdHolograms.data.htmlTarget,   description = 'Set HTML Target for Hologram',    required = false, min = 10, max = 256},
             {type = 'number',   label = 'Distance View',    default = cache_createdHolograms and cache_createdHolograms.data.distanceView, description = 'Max distance of render',         required = true, icon = 'hashtag', min = 10, max = 500},
 
             {type = 'number',   label = 'Scale X',   precision = 2, step = 0.1, default = cache_createdHolograms and cache_createdHolograms.data.scale.y, description = 'Resolution Scale X', icon = 'hashtag', min = 64, max = 2048, required = true},
@@ -173,16 +174,14 @@ CreateThread(function()
 
             cache_createdHolograms = {
                 enabled = true,
-
-                urlTarget = input[2],
                 attachTo = 'world',
 		        type = 'hologram',
 
                 typeProperties = {
-                    rotate = input[6],
-                    cameraFollow = input[7],
-                    bobUpAndDown = input[8],
-                    type = (input[10] == "2d" and 8 or 43),
+                    rotate = input[7],
+                    cameraFollow = input[8],
+                    bobUpAndDown = input[9],
+                    type = (input[11] == "2d" and 8 or 43),
 
                     scale = typePropertiesScale,
                     rotation = typePropertiesRotation,
@@ -190,10 +189,18 @@ CreateThread(function()
 
                 position = position,
                 distanceView = input[3],
-                scale = vec2(input[5], input[4]),
+                scale = vec2(input[6], input[5]),
 
-                visible = input[9],
+                visible = input[10],
             }
+
+            if input[2] ~= "" then
+                cache_createdHolograms.urlTarget = input[2]
+            end
+
+            if input[3] then
+                cache_createdHolograms.htmlTarget = input[3]
+            end
 
             lib.callback.await('abp_holograms:updateHologram', 0, cache_currentHologramId, cache_createdHolograms)
         end
@@ -203,9 +210,9 @@ CreateThread(function()
         local input = lib.inputDialog('Creating Hologram', {
             {type = 'input',    label = 'Holo ID',          default = cache_currentHologramId,      disabled = true},
 
-            {type = 'number',   label = 'Scale X', precision = 2, step = 0.1, default = cache_createdHolograms and cache_createdHolograms.data.typeProperties.scale.x, description = 'World Scale X', icon = 'hashtag', min = 0.5, max = 10, required = true},
-            {type = 'number',   label = 'Scale Y', precision = 2, step = 0.1, default = cache_createdHolograms and cache_createdHolograms.data.typeProperties.scale.y, description = 'World Scale Y', icon = 'hashtag', min = 0.5, max = 10, required = true},
-            {type = 'number',   label = 'Scale Y', precision = 2, step = 0.1, default = cache_createdHolograms and cache_createdHolograms.data.typeProperties.scale.z, description = 'World Scale Y', icon = 'hashtag', min = 0.5, max = 10, required = true},
+            {type = 'number',   label = 'Scale X', precision = 2, step = 0.1, default = cache_createdHolograms and cache_createdHolograms.data.typeProperties.scale.x, description = 'World Scale X', icon = 'hashtag', min = 0.5, max = 50, required = true},
+            {type = 'number',   label = 'Scale Y', precision = 2, step = 0.1, default = cache_createdHolograms and cache_createdHolograms.data.typeProperties.scale.y, description = 'World Scale Y', icon = 'hashtag', min = 0.5, max = 50, required = true},
+            {type = 'number',   label = 'Scale Y', precision = 2, step = 0.1, default = cache_createdHolograms and cache_createdHolograms.data.typeProperties.scale.z, description = 'World Scale Y', icon = 'hashtag', min = 0.5, max = 50, required = true},
         })
 
         if input then
@@ -254,14 +261,17 @@ CreateThread(function()
                 lib.callback.await('abp_holograms:removeHologram', 0, cache_currentHologramId)
 
                 Config.__HologramsObjects[cache_currentHologramId] = nil
-                cache_createdHolograms = nil
-                cache_currentHologramId = nil
 
                 lib.notify({
                     title = 'Hologram Deleted',
                     description = 'Hologram "'.. cache_currentHologramId ..'" deleted.',
                     type = 'success'
                 })
+
+                cache_createdHolograms = nil
+                cache_currentHologramId = nil
+
+                
             end
         end
     end)
