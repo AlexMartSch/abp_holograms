@@ -3,7 +3,7 @@ game 'gta5'
 
 author 'AlexBanPer'
 description 'A hologram API script for FiveM'
-version '1.0.0'
+version '1.1.0'
 
 lua54 'yes'
 
