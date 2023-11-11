@@ -68,26 +68,29 @@ function InitializeDUI()
 				Config.__HologramsObjects[holoId] = {}
 				Config.__HologramsObjects[holoId].id = holoId
 				Config.__HologramsObjects[holoId].data = holo
+				Config.__HologramsObjects[holoId].data.loaded = false
 				Config.__HologramsObjects[holoId].duiIsReady = false
 				Config.__HologramsObjects[holoId].enabled = holo.enabled
 				Config.__HologramsObjects[holoId].visible = holo.visible or false
 	
 				Config.__HologramsObjects[holoId].duiObject = CreateDui(HologramURI, math.floor(holo.scale.x), math.floor(holo.scale.y))
-	
+
 				DebugPrint("\tDUI (".. Config.__HologramsObjects[holoId].duiObject ..") created for " .. holoId .. " Scale (".. math.floor(holo.scale.x) .. " , " .. math.floor(holo.scale.y) ..")")
-	
-				repeat Wait(100) until Config.__HologramsObjects[holoId].duiIsReady or holo.urlTarget ~= nil
-	
+
+				repeat Wait(50) until Config.__HologramsObjects[holoId] and Config.__HologramsObjects[holoId].duiIsReady or holo.urlTarget ~= nil
+
+				if not Config.__HologramsObjects[holoId] then return end
+
 				DebugPrint("\tDUI initialised for " .. holoId)
-	
+
 				Config.__HologramsObjects[holoId].internalId 		= internalId
 				Config.__HologramsObjects[holoId].internalTextureId = internalTextureId
 				Config.__HologramsObjects[holoId].txdHandle 		= CreateRuntimeTxd(internalId)
 				Config.__HologramsObjects[holoId].duiHandle  		= GetDuiHandle(Config.__HologramsObjects[holoId].duiObject)
 				Config.__HologramsObjects[holoId].duiTexture 		= CreateRuntimeTextureFromDuiHandle(Config.__HologramsObjects[holoId].txdHandle, internalTextureId, Config.__HologramsObjects[holoId].duiHandle)
-	
+
 				DebugPrint("\tRuntime texture created for " .. holoId .. " (duiObject: ".. Config.__HologramsObjects[holoId].duiObject ..")")
-	
+
 				if holo.type ~= 'hologram-marker' then
 					Config.__HologramsObjects[holoId].hologramObject = CreateHologram()
 					AddReplaceTexture("hologram_box_model", "p_hologram_box" , internalId, internalTextureId)
@@ -97,25 +100,25 @@ function InitializeDUI()
 							local pos = holo.position
 
 							while Config.__HologramsObjects[holoId] and DoesEntityExist(Config.__HologramsObjects[holoId].hologramObject) do
-	
 								DrawLightWithRange(pos.x, pos.y, pos.z, 255, 255, 255, 1.0, 100.0)
 								SetEntityHeading(Config.__HologramsObjects[holoId].hologramObject,  GetGameplayCamRot(0).z)
-								
+
 								Wait(0)
 							end
 						end)
 					end
+
+					if holo.attachTo == 'player' then
+						AttachHologramToPlayer(holoId)
+					elseif holo.attachTo == 'vehicle' then
+						-- Create the hologram object
+						-- AttachEntityToEntity(Config.__HologramsObjects[holoId].hologramObject, GetVehiclePedIsIn(PlayerPedId(), false), GetEntityBoneIndexByName(GetVehiclePedIsIn(PlayerPedId(), false), "chassis"), holo.position, AttachmentRotation, false, false, false, false, false, true)
+					elseif holo.attachTo == 'world' then
+						AttachHologramToWorld2(Config.__HologramsObjects[holoId].hologramObject, holo.position)
+					end
 				end
-				
-				if holo.attachTo == 'player' then
-					AttachHologramToPlayer(holoId)
-				elseif holo.attachTo == 'vehicle' then
-					-- Create the hologram object
-					-- AttachEntityToEntity(Config.__HologramsObjects[holoId].hologramObject, GetVehiclePedIsIn(PlayerPedId(), false), GetEntityBoneIndexByName(GetVehiclePedIsIn(PlayerPedId(), false), "chassis"), holo.position, AttachmentRotation, false, false, false, false, false, true)
-				elseif holo.attachTo == 'world' then
-					AttachHologramToWorld2(Config.__HologramsObjects[holoId].hologramObject, holo.position)
-				end
-	
+
+
 				DebugPrint("Done! (".. Config.__HologramsObjects[holoId].duiObject ..") for " .. holoId)
 			end
 		end)
@@ -278,8 +281,9 @@ function AttachHologramToWorld(holoData, txd, txn)
 	local scale = properties.scale
 	local rotation = properties.rotation
 
-
-	DrawMarker(properties.type or 8, coords.x, coords.y, coords.z, 0.0, 0.0, 0.0, rotation.x, rotation.y, rotation.z, scale.x, scale.y, scale.z, 255, 255, 255, 200, properties.bobUpAndDown, properties.cameraFollow, 2, properties.rotate, txd, txn, false)
+	if txd and txn then
+		DrawMarker(properties.type or 8, coords.x, coords.y, coords.z, 0.0, 0.0, 0.0, rotation.x, rotation.y, rotation.z, scale.x, scale.y, scale.z, 255, 255, 255, 200, properties.bobUpAndDown, properties.cameraFollow, 2, properties.rotate, txd, txn, false)
+	end
 end
 
 
@@ -462,6 +466,7 @@ EnsureDuiMessage = function(hologram, hologramId, eventName, data)
 
 	if not Config.__HologramsObjects[hologramId] then return false end
 	if not hologram then return false end
+	if not hologram.enabled then return false end
 	if not hologram.duiObject or hologram.duiObject == 0 then return false end
 	if not IsDuiAvailable(hologram.duiObject) then return false end
 
