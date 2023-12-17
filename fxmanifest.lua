@@ -3,7 +3,7 @@ game 'gta5'
 
 author 'AlexBanPer'
 description 'A hologram API script for FiveM'
-version '1.1.0'
+version '1.2.0'
 
 lua54 'yes'
 
@@ -25,6 +25,7 @@ client_scripts {
 	'client/utils.lua',
 	'client/editor.lua',
 	'client/client.lua',
+	'client/examples.lua'
 }
 
 server_scripts {

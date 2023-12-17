@@ -11,6 +11,24 @@ window.addEventListener("message", function(ev) {
     emitEvent(duiName, eventName, id, content)
 });
 
+// function AddEventListener(duiName, eventName, callback){
+//     setInterval(() => {
+//         if(eventData !== null){
+//             console.log(eventData.id, eventData.duiName, duiName, eventData.eventName, eventName, eventData.content);
+//             if(eventData.duiName == duiName && eventData.eventName == eventName){
+//                 callback(eventData.id, eventData.content)
+
+//                 setTimeout(() => {
+//                     eventData = null
+//                 }, 50);
+//             }
+//         }
+//     }, 100);
+// }
+
+// const events = {};
+
+// Función para suscribirse a eventos
 function AddEventListener(duiName, eventName, callback) {
     if (!events[duiName]) {
         events[duiName] = {};
