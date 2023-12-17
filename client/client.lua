@@ -21,8 +21,6 @@ RegisterNetEvent('abp_holograms:UpdateHologramsFromServer', function(holograms)
 end)
 
 RegisterNetEvent('abp_holograms:UpdateHologram', function(holoId, data)
-
-	
 	if Config.__HologramsObjects[holoId] then
 		local update = true
 
@@ -245,7 +243,6 @@ function GetAttachmentByVehicle(currentVehicle)
     ]]--
 	return AttachmentOffset
 end
-
 
 -- Attach hologram entity to the vehicle
 
@@ -514,7 +511,7 @@ RegisterCommand('destroyholos', function()
 end)
 
 AddEventHandler("onResourceStop", function(resource)
-	if resource == ResourceName then
+	if resource == GetCurrentResourceName() then
 		DestroyAllHolograms()
 	end
 end)

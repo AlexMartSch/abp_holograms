@@ -109,11 +109,15 @@ CreateThread(function()
 
         local elements = {
             {
+                type = 'input',
+                label = 'Hologram ID',
+                description = 'Some unique identificator',
+            },
+            {
                 type = 'select',
                 label = 'Hologram',
                 description = 'Select near hologram to edit',
                 options = {},
-                required = true,
             }
         }
 
@@ -123,7 +127,7 @@ CreateThread(function()
                 local distance = math.floor(#(pos - GetEntityCoords(PlayerPedId())))
                 
                 if distance <= 50 then
-                    table.insert(elements[1].options, {
+                    table.insert(elements[2].options, {
                         label = string.lower(holoId),
                         value = holoId,
                     })
@@ -134,9 +138,31 @@ CreateThread(function()
         local input = lib.inputDialog('Hologram List', elements)
 
         if input then
-            cache_currentHologramId = input[1]
+            local holoName = input[2]
+            if input[1] and input[1] ~= "" then
+                holoName = string.lower(input[1])
+                if not Config.__HologramsObjects[holoName] then
+                    return lib.notify({
+                        title = 'Hologram ID not exists',
+                        description = 'Hologram ID "'.. holoName ..'" not exists.',
+                        type = 'error'
+                    })
+                end
+            end
 
-            lib.setMenuOptions('abpHologram_EditorMenu_editing', {label = 'Editing: '.. input[1]}, 1)
+            if input[1] == "" and not input[2] then
+                return lib.notify({
+                    title = 'Hologram not selected',
+                    description = 'Hologram not selected.',
+                    type = 'error'
+                })
+            end
+
+            
+
+            cache_currentHologramId = holoName
+
+            lib.setMenuOptions('abpHologram_EditorMenu_editing', {label = 'Editing: '.. holoName}, 1)
             lib.showMenu('abpHologram_EditorMenu_editing')
         end
 
@@ -538,6 +564,7 @@ CreateThread(function()
             EnableControlAction(0, 140)
 
             if savePosition then
+                print(hologram.typeProperties.rotation.x, hologram.typeProperties.rotation.y, hologram.typeProperties.rotation.z)
                 if cache_createdHolograms then
                     cache_createdHolograms.data.typeProperties.rotation = hologram.typeProperties.rotation
                     lib.callback.await('abp_holograms:updateHologram', 0, cache_currentHologramId, cache_createdHolograms.data)
