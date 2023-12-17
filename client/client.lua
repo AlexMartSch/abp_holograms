@@ -1,5 +1,6 @@
 -- Holograms
 local savedHolograms = lib.callback.await('abp_holograms:getHolograms', false)
+local holoCallbacks = {}
 
 function MergeSavedWithConfig()
 	for k, v in pairs(savedHolograms) do
@@ -304,7 +305,28 @@ RegisterNUICallback("duiIsReady", function(data, cb)
     cb({ok = true})
 end)
 
+RegisterNUICallback('sendData', function(data, cb) 
+	local holoId = data.id
+	local eventName = data.eventName
+	local data = data.content
 
+	if not Config.__HologramsObjects[holoId] then return end
+
+	if holoCallbacks[holoId] and holoCallbacks[holoId][eventName] then
+		holoCallbacks[holoId][eventName](data)
+	end
+
+	cb({ok = true})
+end)
+
+exports('RegisterHologramCallback', function(holoId, eventName, callback)
+	if not holoCallbacks[holoId] then
+		holoCallbacks[holoId] = {}
+	end
+
+	holoCallbacks[holoId][eventName] = callback
+	print("Hologram callback registered for ".. holoId .." with event name ".. eventName)
+end)
 
 exports('ToggleHologramState', function(holoId, state)
 	if Config.__HologramsObjects[holoId] then
