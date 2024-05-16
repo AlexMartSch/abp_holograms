@@ -30,7 +30,7 @@ CreateThread(function()
     function OpenCreatorInput()
         local input = lib.inputDialog('Creating Hologram', {
             {type = 'input',    label = 'Holo ID',          description = 'Some unique identificator',      required = true, min = 4, max = 16},
-            {type = 'input',    label = 'URL Target',       default = cache_createdHolograms and cache_createdHolograms.urlTarget,   description = 'Set URL Target for Hologram',    required = true, min = 10, max = 256},
+            {type = 'input',    label = 'URL Target',       default = cache_createdHolograms and cache_createdHolograms.urlTarget,   description = 'Set URL Target for Hologram.\n Autoset HTML target if URL Target without https://',    required = true, min = 5, max = 256},
             {type = 'number',   label = 'Distance View',    default = cache_createdHolograms and cache_createdHolograms.distanceView, description = 'Max distance of render',         required = true, icon = 'hashtag', min = 10, max = 500},
 
             {type = 'number',   label = 'Scale X',  precision = 2, step = 0.1, default = cache_createdHolograms and cache_createdHolograms.scale.x, description = 'Resolution Scale X', icon = 'hashtag', min = 64, max = 2048, required = true},
@@ -52,10 +52,13 @@ CreateThread(function()
 
         if input then
 
+            local hasUrl = string.find(input[2], 'https://') or string.find(input[2], 'http://')
+
             cache_createdHolograms = {
                 enabled = true,
 
-                urlTarget = input[2],
+                urlTarget = hasUrl and input[2] or nil,
+                htmlTarget = not hasUrl and input[2] or nil,
                 attachTo = 'world',
 		        type = 'hologram',
 
@@ -70,7 +73,7 @@ CreateThread(function()
                 },
 
                 position = GetEntityCoords(PlayerPedId()),
-                distanceView = input[3],
+                distanceView = tonumber(input[3]),
                 scale = vec2(input[5], input[4]),
 
                 visible = input[9],
@@ -173,7 +176,7 @@ CreateThread(function()
             {type = 'input',    label = 'Holo ID',          default = cache_currentHologramId,      disabled = true},
             {type = 'input',    label = 'URL Target',       default = cache_createdHolograms and cache_createdHolograms.data.urlTarget,   description = 'Set URL Target for Hologram',    required = false, min = 10, max = 256},
             {type = 'input',    label = 'Html Target',       default = cache_createdHolograms and cache_createdHolograms.data.htmlTarget,   description = 'Set HTML Target for Hologram',    required = false, min = 10, max = 256},
-            {type = 'number',   label = 'Distance View',    default = cache_createdHolograms and cache_createdHolograms.data.distanceView, description = 'Max distance of render',         required = true, icon = 'hashtag', min = 10, max = 500},
+            {type = 'number',   label = 'Distance View',    default = cache_createdHolograms and cache_createdHolograms.data.distanceView or 100, description = 'Max distance of render',         required = true, icon = 'hashtag', min = 10, max = 500},
 
             {type = 'number',   label = 'Scale X',   precision = 2, step = 0.1, default = cache_createdHolograms and cache_createdHolograms.data.scale.y, description = 'Resolution Scale X', icon = 'hashtag', min = 64, max = 2048, required = true},
             {type = 'number',   label = 'Scale Y',   precision = 2, step = 0.1, default = cache_createdHolograms and cache_createdHolograms.data.scale.x, description = 'Resolution Scale Y', icon = 'hashtag', min = 64, max = 2048, required = true},
@@ -214,7 +217,7 @@ CreateThread(function()
                 },
 
                 position = position,
-                distanceView = input[3],
+                distanceView = tonumber(input[3]),
                 scale = vec2(input[6], input[5]),
 
                 visible = input[10],
@@ -228,7 +231,21 @@ CreateThread(function()
                 cache_createdHolograms.htmlTarget = input[3]
             end
 
-            lib.callback.await('abp_holograms:updateHologram', 0, cache_currentHologramId, cache_createdHolograms)
+            local saved = lib.callback.await('abp_holograms:updateHologram', 0, cache_currentHologramId, cache_createdHolograms)
+
+            if saved then
+                lib.notify({
+                    title = 'Hologram Updated',
+                    description = 'Hologram "'.. cache_currentHologramId ..'" updated.',
+                    type = 'success'
+                })
+            else
+                lib.notify({
+                    title = 'Hologram not updated',
+                    description = 'Hologram "'.. cache_currentHologramId ..'" not updated.',
+                    type = 'error'
+                })
+            end
         end
     end
 
@@ -287,6 +304,7 @@ CreateThread(function()
                 lib.callback.await('abp_holograms:removeHologram', 0, cache_currentHologramId)
 
                 Config.__HologramsObjects[cache_currentHologramId] = nil
+                Config.Holograms[cache_currentHologramId] = nil
 
                 lib.notify({
                     title = 'Hologram Deleted',
@@ -308,9 +326,10 @@ CreateThread(function()
         position = 'top-right',
 
         options = {
-            {label = 'Create Hologram',    icon = 'wand-magic-sparkles', description = 'Create new Hologram'},
-            {label = 'Edit Hologram',      icon = 'pen', description = 'Edit existing hologram'},
-            {label = 'Toggle Hologram ID', icon = 'user-tag', checked = showHologramIds},
+            {label = 'Create Hologram',         icon = 'wand-magic-sparkles', description = 'Create new Hologram'},
+            {label = 'Edit Hologram',           icon = 'pen', description = 'Edit existing hologram'},
+            {label = 'Destroy All Holograms',   icon = 'bomb', description = 'Destroy All Holograms'},
+            {label = 'Toggle Hologram ID',      icon = 'user-tag', checked = showHologramIds},
         },
 
         onCheck = function(selected, checked, args)
@@ -328,6 +347,17 @@ CreateThread(function()
             OpenCreatorInput()
         elseif selected == 2 then
             OpenSelectHologramToEditInput()
+        elseif selected == 3 then
+            local alert = lib.alertDialog({
+                header = 'Destroing All Holograms',
+                content = 'Are you sure?',
+                centered = true,
+                cancel = true
+            })
+
+            if alert == 'confirm' then
+                DestroyAllHolograms()
+            end
         elseif selected == 4 then
             lib.setMenuOptions('abpHologram_EditorMenu_editing', {label = 'Editing: '.. cache_currentHologramId}, 1)
             lib.showMenu('abpHologram_EditorMenu_editing')
@@ -354,6 +384,13 @@ CreateThread(function()
         local cacheHologram = DeepTableCopy(Config.__HologramsObjects[holoID].data)
         local hologram = Config.__HologramsObjects[holoID].data
         local savePosition = false
+
+        if not hologram then
+            return lib.notify({
+                title = 'Hologram not found',
+                type = 'error'
+            })
+        end
 
         editor_positionThread = true
 
@@ -424,8 +461,6 @@ CreateThread(function()
                     end
                 end
 
-                
-
                 if IsDisabledControlJustPressed(0, 140) then -- R
                     savePosition = true
                     editor_positionThread = false
@@ -445,6 +480,8 @@ CreateThread(function()
                 if cache_createdHolograms then
                     cache_createdHolograms.data.position = hologram.position
                     lib.callback.await('abp_holograms:updateHologram', 0, cache_currentHologramId, cache_createdHolograms.data)
+
+                    NEX.Print(hologram)
 
                     lib.notify({
                         title = 'Position Updated',
@@ -564,7 +601,6 @@ CreateThread(function()
             EnableControlAction(0, 140)
 
             if savePosition then
-                print(hologram.typeProperties.rotation.x, hologram.typeProperties.rotation.y, hologram.typeProperties.rotation.z)
                 if cache_createdHolograms then
                     cache_createdHolograms.data.typeProperties.rotation = hologram.typeProperties.rotation
                     lib.callback.await('abp_holograms:updateHologram', 0, cache_currentHologramId, cache_createdHolograms.data)
