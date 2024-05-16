@@ -8,6 +8,8 @@ function GetSavedHolograms()
     end
 end
 
+GetSavedHolograms()
+
 function SaveHologram()
 
     local nilCheckHolograms = {}
@@ -26,8 +28,6 @@ function SaveHologram()
 
     savedHolograms = nilCheckHolograms
 end
-
-GetSavedHolograms()
 
 lib.addCommand('holoeditor', {
     help = 'Open Hologram Editor',
@@ -79,8 +79,6 @@ lib.addCommand('resethologram', {
         type = 'error',
         text = 'Hologram not found!'
     })
-    
-    
 end)
 
 lib.callback.register('abp_holograms:getHolograms', function(source)

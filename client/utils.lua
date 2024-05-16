@@ -97,6 +97,12 @@ function TableContains(t, e)
 	return false
 end
 
+function TableCount(...)
+  local count = 0
+  for _ in pairs(...) do count = count + 1 end
+  return count
+end
+
 function FindHologramByHtmlTarget(htmlTarget)
 
   local found = {}

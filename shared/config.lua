@@ -24,6 +24,10 @@ Config.DebugMode = true
 -- Save algorithm with 'json' or 'kvp' methods
 Config.SaveAlgorithm = 'json'
 
+-- Maximum GFX Loaded
+Config.MaxGFX = 6
+
+-- Hologram default properties
 Config.Holograms = {
 	['mainmenulogo'] = {
 		enabled = true,
