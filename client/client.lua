@@ -1,6 +1,9 @@
+---@diagnostic disable: need-check-nil
+
 -- Holograms
 local savedHolograms = lib.callback.await('abp_holograms:getHolograms', false)
 local holoCallbacks = {}
+local holoScaleformsAvailable = {}
 
 function MergeSavedWithConfig()
 	for k, v in pairs(savedHolograms) do
@@ -50,8 +53,6 @@ local AttachmentRotation = vec3(0, 0, -15)
 local HologramModel      = `hologram_box_model`
 local PlayerPed = PlayerPedId()
 
-
-
 -- Initialise the DUI. We only need to do this once.
 function InitializeDUI()
 	DebugPrint("Initialising...")
@@ -59,17 +60,21 @@ function InitializeDUI()
 	for holoId, holo in pairs(Config.Holograms) do
 		CreateThread(function() 
 			if not Config.__HologramsObjects[holoId] then
+				
 				local HologramURI        	= holo.urlTarget and holo.urlTarget or string.format("nui://%s/ui/pages/%s/%s.html", ResourceName, holo.htmlTarget, holo.htmlTarget)
 				local randId 				= math.random(1000, 9999)
 				local internalId 			= "HologramDUI_"..holoId.."_"..randId
 				local internalTextureId 	= "DUI_"..holoId.."-"..randId
-	
+
+				holo = CheckHoloDataDefaults(holo, holoId)
+
 				Config.__HologramsObjects[holoId] = {}
 				Config.__HologramsObjects[holoId].id = holoId
 				Config.__HologramsObjects[holoId].data = holo
 				Config.__HologramsObjects[holoId].data.loaded = false
 				Config.__HologramsObjects[holoId].duiIsReady = false
-				Config.__HologramsObjects[holoId].enabled = holo.enabled
+				
+				Config.__HologramsObjects[holoId].enabled = holo.enabled or true
 				Config.__HologramsObjects[holoId].visible = holo.visible or false
 	
 				Config.__HologramsObjects[holoId].duiObject = CreateDui(HologramURI, math.floor(holo.scale.x), math.floor(holo.scale.y))
@@ -91,20 +96,52 @@ function InitializeDUI()
 				DebugPrint("\tRuntime texture created for " .. holoId .. " (duiObject: ".. Config.__HologramsObjects[holoId].duiObject ..")")
 
 				if holo.type ~= 'hologram-marker' then
-					Config.__HologramsObjects[holoId].hologramObject = CreateHologram()
-					AddReplaceTexture("hologram_box_model", "p_hologram_box" , internalId, internalTextureId)
+					if holo.type == 'hologram-scaleform' then
+						local handleIndex = GetAvailableScaleformIndex()
+						if handleIndex then
+							holoScaleformsAvailable[handleIndex] = true
 
-					if holo.typeProperties.cameraFollow then
-						CreateThread(function() 
-							local pos = holo.position
+							Config.__HologramsObjects[holoId].sfHandle = lib.requestScaleformMovie("GT_"..handleIndex, 1200)
+							if Config.__HologramsObjects[holoId].sfHandle then
+								PushScaleformMovieFunction(Config.__HologramsObjects[holoId].sfHandle, 'SET_TEXTURE')
+								PushScaleformMovieMethodParameterString(internalId)
+								PushScaleformMovieMethodParameterString(internalTextureId)
 
-							while Config.__HologramsObjects[holoId] and DoesEntityExist(Config.__HologramsObjects[holoId].hologramObject) do
-								DrawLightWithRange(pos.x, pos.y, pos.z, 255, 255, 255, 1.0, 100.0)
-								SetEntityHeading(Config.__HologramsObjects[holoId].hologramObject,  GetGameplayCamRot(0).z)
+								PushScaleformMovieFunctionParameterInt(0)
+								PushScaleformMovieFunctionParameterInt(0)
+								PushScaleformMovieFunctionParameterInt(math.floor(holo.scale.x))
+								PushScaleformMovieFunctionParameterInt(math.floor(holo.scale.y))
 
-								Wait(0)
+								PopScaleformMovieFunctionVoid()
+
+								Config.__HologramsObjects[holoId].sfReady = true
+								Config.__HologramsObjects[holoId].sfId = handleIndex
+								DebugPrint("[Hologram] Setup Scaleform texture for ".. holoId .. ' with index ' , handleIndex)
 							end
-						end)
+						else
+							DebugPrint("[Hologram] No available scaleform texture for ".. holoId)
+						end
+					else
+						Config.__HologramsObjects[holoId].hologramObject = CreateHologram()
+						AddReplaceTexture("hologram_box_model", "p_hologram_box" , internalId, internalTextureId)
+	
+						if holo.typeProperties.cameraFollow then
+							CreateThread(function() 
+								local pos = holo.position
+								if not pos then 
+									pos = GetEntityCoords(Config.__HologramsObjects[holoId].hologramObject)
+								end
+	
+								if not pos then return end
+	
+								while Config.__HologramsObjects[holoId] and DoesEntityExist(Config.__HologramsObjects[holoId].hologramObject) do
+									DrawLightWithRange(pos.x, pos.y, pos.z, 255, 255, 255, 1.0, 100.0)
+									SetEntityHeading(Config.__HologramsObjects[holoId].hologramObject,  GetGameplayCamRot(0).z)
+	
+									Wait(0)
+								end
+							end)
+						end
 					end
 
 					if holo.attachTo == 'player' then
@@ -113,8 +150,9 @@ function InitializeDUI()
 						-- Create the hologram object
 						-- AttachEntityToEntity(Config.__HologramsObjects[holoId].hologramObject, GetVehiclePedIsIn(PlayerPedId(), false), GetEntityBoneIndexByName(GetVehiclePedIsIn(PlayerPedId(), false), "chassis"), holo.position, AttachmentRotation, false, false, false, false, false, true)
 					elseif holo.attachTo == 'world' then
-						AttachHologramToWorld2(Config.__HologramsObjects[holoId].hologramObject, holo.position)
+						AttachHologramToWorld2(Config.__HologramsObjects[holoId].hologramObject, holo.position, holoId)
 					end
+
 				end
 
 
@@ -126,6 +164,96 @@ function InitializeDUI()
 	DebugPrint("DUI Creation has been finished!")
 
 	SetModelAsNoLongerNeeded(HologramModel)
+end
+
+function GetAvailableScaleformIndex()
+	Wait(100 + (TableCount(holoScaleformsAvailable) + 10))
+
+	local sfCount = TableCount(holoScaleformsAvailable)
+	local sfNextIndex = sfCount + 1
+
+	return sfCount <= Config.MaxGFX and sfNextIndex or false
+end
+
+function CheckHoloDataDefaults(holoData, holoId)
+
+	--- Check Holo Data default
+	if not holoData.typeProperties then
+		holoData.typeProperties = {
+			rotation = vector3(0.0, 0.0, 0.0),
+			scale = vector3(1.0, 1.0, 1.0),
+			rotate = false,
+			cameraFollow = true,
+			bobUpAndDown = false
+		}
+	else
+		if not holoData.typeProperties.rotation then
+			if holoData.attachTo ~= 'player' then
+				holoData.typeProperties.rotation = vector3(90.0, 0.0, 0.0)
+			end
+		end
+
+		if not holoData.typeProperties.scale then
+			holoData.typeProperties.scale = vector3(1.0, 1.0, 1.0)
+		end
+
+		if not holoData.typeProperties.rotate then
+			holoData.typeProperties.rotate = false
+		end
+
+		if not holoData.typeProperties.cameraFollow then
+			holoData.typeProperties.cameraFollow = true
+		end
+
+		if not holoData.typeProperties.bobUpAndDown then
+			holoData.typeProperties.bobUpAndDown = false
+		end
+	end
+	
+	if type(holoData.enabled) == 'nil' then
+		holoData.enabled = true
+	end
+
+	if not holoData.urlTarget and not holoData.htmlTarget then
+		holoData.urlTarget = "https://http.cat/404"
+		print("[Hologram] Warning: Hologram ".. holoId .." urlTarget/htmlTarget not set, defaulting to [https://http.cat/404]")
+	end
+	
+	if not holoData.attachTo then
+		holoData.attachTo = 'world'
+	end
+
+	if not holoData.type then
+		if holoData.attachTo ~= 'player' then
+			holoData.type = 'hologram-marker'
+		end
+	end
+
+	if not holoData.position then
+		if holoData.attachTo ~= 'player' then
+			holoData.position = vector3(0.0, 0.0, 0.0)
+			print("[Hologram] Warning: Hologram ".. holoId .." position not set, defaulting to [0.0, 0.0, 0.0]")
+		end
+	end
+	
+	if not holoData.distanceView then
+		holoData.distanceView = 30
+	end
+
+	if not holoData.scale then
+		holoData.scale = vector2(1920, 1024)
+		print("[Hologram] Warning: Hologram ".. holoId .." scale not set, defaulting to [1920, 1024]")
+	end
+
+	if not holoData.sfScale then
+		holoData.sfScale = 0.1
+	end
+
+	if not holoData.visible then
+		holoData.visible = false
+	end
+
+	return holoData
 end
 
 function HologramDistanceCheckThread()
@@ -141,7 +269,7 @@ function HologramDistanceCheckThread()
 				if Config.__HologramsObjects[holoId].enabled then
 					if Config.__HologramsObjects[holoId].data.attachTo ~= 'player' then
 						local distance = math.floor(#(holoData.data.position - playerCoords))
-						local distanceView = holoData.data.distanceView or 30
+						local distanceView = tonumber(holoData.data.distanceView) or 30
 
 						if distance <= distanceView then
 							Config.__HologramsObjects[holoId].visible = true
@@ -171,12 +299,27 @@ function HologramDistanceCheckThread()
 end
 
 function DisplayHolograms()
+
 	CreateThread(function() 
 		while true do
 			for holoId, holoData in pairs(Config.__HologramsObjects) do
 				if holoData.enabled and holoData.visible then
 					if holoData.data.attachTo == 'world' and holoData.data.type == 'hologram-marker'  then
 						AttachHologramToWorld(holoData.data, holoData.internalId, holoData.internalTextureId)
+					elseif holoData.data.attachTo == 'world' and holoData.data.type == 'hologram-scaleform' then
+						local sfHandle = holoData.sfHandle
+						if sfHandle and holoData.sfReady then
+							local position = holoData.data.position
+							local camRotation = holoData.data.typeProperties.cameraFollow and GetGameplayCamRot(2) or vec3(0,0,0)
+							DrawScaleformMovie_3dNonAdditive(sfHandle,
+								position.x, position.y, position.z + 2,
+								0, -camRotation.z, camRotation.y,
+								2, 2, 2,
+								(holoData.data.sfScale * 1), (holoData.data.sfScale * (9/16)),
+								1, 2
+							)
+						end
+						
 					end
 				end
 			end
@@ -265,11 +408,13 @@ function AttachHologramToPlayer(holoId)
 	DebugPrint(string.format("DUI anchor %s attached to %s", holo.hologramObject, PlayerPedId()))
 end
 
-function AttachHologramToWorld2(hologramObject, coords)
-	SetEntityCoords(hologramObject, coords.x, coords.y, coords.z)
-	FreezeEntityPosition(hologramObject, true)
-	SetEntityHeading(hologramObject, 220.0)
-	DebugPrint(string.format("DUI anchor %s attached to world", hologramObject))
+function AttachHologramToWorld2(hologramObject, coords, holoId)
+	if Config.__HologramsObjects[holoId].type ~= "hologram-scaleform" then
+		SetEntityCoords(hologramObject, coords.x, coords.y, coords.z)
+		FreezeEntityPosition(hologramObject, true)
+		SetEntityHeading(hologramObject, 220.0)
+		DebugPrint(string.format("DUI anchor %s attached to world", hologramObject))
+	end
 end
 
 function AttachHologramToWorld(holoData, txd, txn)
@@ -310,10 +455,10 @@ RegisterNUICallback('sendData', function(data, cb)
 	if not Config.__HologramsObjects[holoId] then return end
 
 	if holoCallbacks[holoId] and holoCallbacks[holoId][eventName] then
-		holoCallbacks[holoId][eventName](data)
+		return holoCallbacks[holoId][eventName](data)
 	end
 
-	cb({ok = true})
+	return cb({ok = true})
 end)
 
 exports('RegisterHologramCallback', function(holoId, eventName, callback)
@@ -332,11 +477,14 @@ exports('ToggleHologramState', function(holoId, state)
 end)
 
 exports('CreateHologram', function(holoId, holoData) 
-	if not Config.Holograms[holoId] then
-		Config.Holograms[holoId] = holoData
 
-		InitializeDUI()
+	if Config.__HologramsObjects[holoId] then
+		print("Holograms object updating for ".. holoId)
+		DestroyHologram(holoId, true)
 	end
+	
+	Config.Holograms[holoId] = holoData
+	InitializeDUI()
 
 	return holoId
 end)
@@ -426,13 +574,18 @@ function RebuildHologram(__holoId__, __holoData__)
 	Config.Holograms[__holoId__] = __holoData__
 
 	InitializeDUI()
-
 end
 
 function DestroyHologram(__holoId__, forced)
 	for holoId, holo in pairs(Config.__HologramsObjects) do
 		if holoId == __holoId__ then
 			holo.enabled = false
+
+			if holo.sfHandle then
+				SetScaleformMovieAsNoLongerNeeded(holo.sfId)
+				DebugPrint("\tSetting scaleform movie as no longer needed for ".. holoId)
+			end
+
 			if DoesEntityExist(holo.hologramObject) then
 				DeleteVehicle(holo.hologramObject)
 				DebugPrint("\tDUI for ".. holoId .." anchor deleted "..tostring(holo.hologramObject))
@@ -463,6 +616,11 @@ function DestroyAllHolograms()
 
 	for holoId, holo in pairs(Config.__HologramsObjects) do
 
+		if holo.sfHandle then
+			SetScaleformMovieAsNoLongerNeeded(holo.sfId)
+			DebugPrint("\tSetting scaleform movie as no longer needed for ".. holoId)
+		end
+
 		holo.enabled = false
 
 		if DoesEntityExist(holo.hologramObject) then
@@ -489,7 +647,7 @@ EnsureDuiMessage = function(hologram, hologramId, eventName, data)
 	if not hologram.duiObject or hologram.duiObject == 0 then return false end
 	if not IsDuiAvailable(hologram.duiObject) then return false end
 
-	repeat Wait(300) until hologram.duiIsReady
+	repeat Wait(50) until hologram.duiIsReady
 
 	SendDuiMessage(hologram.duiObject, json.encode({
 		content		= data,
@@ -506,15 +664,20 @@ exports('SendHologramData', function(hologramId, eventName, data)
 	return EnsureDuiMessage(Config.__HologramsObjects[hologramId], hologramId, eventName, data)
 end)
 
-RegisterCommand('destroyholos', function() 
-	DestroyAllHolograms()
-end)
-
 AddEventHandler("onResourceStop", function(resource)
 	if resource == GetCurrentResourceName() then
 		DestroyAllHolograms()
 	end
 end)
 
+RegisterCommand('flushsf', function() 
+	for holoId, holo in pairs(Config.__HologramsObjects) do
+		if holo.sfHandle then
+			SetScaleformMovieAsNoLongerNeeded(holo.sfHandle)
+			DebugPrint("\tSetting scaleform movie as no longer needed for ".. holoId)
+		end
+	end
+
+end)
 ----
 -- DrawMarker 43 es un cubo donde se muestran todas sus caras.
